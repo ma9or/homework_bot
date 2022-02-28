@@ -3,9 +3,12 @@ import logging
 import telegram
 import time
 import requests
+import json
+import exceptions as ex
 
 from http import HTTPStatus
 from dotenv import load_dotenv
+from telegram.error import TelegramError
 
 
 load_dotenv()
@@ -33,60 +36,34 @@ HOMEWORK_STATUSES = {
 }
 
 
-class NegativeValueException(Exception):
-    """Класс исключений."""
-
-    pass
-
-
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
-    try:
-        bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.info('Сообщение отправлено')
-    except Exception as error:
-        logging.error(error)
+    bot.send_message(TELEGRAM_CHAT_ID, message)
+    logger.info('Сообщение отправлено')
 
 
 def get_api_answer(current_timestamp):
     """Делает запрос к единственному эндпоинту API-сервиса."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
-
-    try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    except Exception:
-        message = 'API ведет себя незапланированно'
-        logging.error(message)
-        raise NegativeValueException(message)
-    try:
-        if response.status_code != HTTPStatus.OK:
-            message = 'Сервер не отвечает'
-            logging.error(message)
-            raise Exception(message)
-    except Exception:
-        message = 'API ведет себя незапланированно'
-        logging.error(message)
-        raise NegativeValueException(message)
-    return response.json()
+    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    if response.status_code == HTTPStatus.OK:
+        return response.json()
+    if response.status_code != HTTPStatus.OK:
+        raise ex.NegativeValueAPI('нет ответа от эндпоинта')
 
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
     if type(response) is not dict:
         message = 'Ответ API не словарь'
-        logging.error(message)
+        logger.error(message)
         raise TypeError(message)
-    elif ['homeworks'][0] not in response:
-        message = 'В ответе API нет домашней работы'
-        logging.error(message)
-        raise IndexError(message)
     elif len(response['homeworks']) == 0:
-        raise NegativeValueException('список пуст')
+        raise KeyError('список пуст')
     elif type(response['homeworks']) is not list:
-        raise NegativeValueException('домашки приходят не в виде списка')
+        raise ex.NegativeValueException('домашки приходят не в виде списка')
     homework = response["homeworks"]
-
     return homework
 
 
@@ -96,9 +73,12 @@ def parse_status(homework):
     homework_name = homework['homework_name']
     homework_status = homework['status']
 
+    if 'status' not in homework:
+        raise KeyError('Ответ от API не содержит ключа "status".')
+
     if homework_status not in HOMEWORK_STATUSES:
-        logging.debug('отсуствует в ответе новые статусы')
-        raise NegativeValueException(
+        logger.debug('отсуствует в ответе новые статусы')
+        raise ex.NegativeValueException(
             "Cтатус отсутствующий в списке!"
         )
 
@@ -112,11 +92,11 @@ def check_tokens():
     token_list = [
         PRACTICUM_TOKEN,
         TELEGRAM_TOKEN,
-        PRACTICUM_TOKEN,
+        TELEGRAM_CHAT_ID,
     ]
     if not all(token_list):
         message = 'Отсутствует или не задана переменная окружения.'
-        logging.critical(message)
+        logger.critical(message)
         return False
     return True
 
@@ -127,7 +107,7 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
 
-    if check_result is False:
+    if check_result:
         message = 'Аутентификация не удалась'
         logger.critical(message)
         raise SystemExit(message)
@@ -145,6 +125,14 @@ def main():
             current_timestamp = response['current_date']
             time.sleep(RETRY_TIME)
 
+        except TelegramError(message):
+            message = 'сообщение не отправлено'
+            logger.error('message')
+        except ex.NegativeValueAPI:
+            message = 'нет ответа от эндпоинта'
+            logger.error('message')
+        except json.decoder.JSONDecodeError:
+            logger.error('не json')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
