@@ -85,25 +85,26 @@ def check_response(response):
 def parse_status(homework):
     """Извлекает из информации о конкретной."""
     """домашней работе статус этой работы."""
-    try:
-        homework_name = homework['homework_name']
-        raise KeyError('Ответ от API не содержит ключа "homework_name".')
-    except KeyError:
-        logger.error('Ответ от API не содержит ключа "homework_name".')
-    try:
-        homework_status = homework['status']
-        raise KeyError('Ответ от API не содержит ключа "status".')
-    except KeyError:
-        logger.error('Ответ от API не содержит ключа "status".')
-    if homework_status not in HOMEWORK_STATUSES:
-        logging.debug('Cтатус отсутствующий в списке!')
+    homework_name = homework.get('homework_name')
+    if 'homework_name' not in homework:
         raise KeyError(
-            'Cтатус отсутствующий в списке!'
+            'В ответе API не содержится ключ homework_name.'
         )
-
+        logger.error(exc_info=True)
+    homework_status = homework.get('status')
+    if 'status' not in homework:
+        raise KeyError(
+            'В ответе API не содержится ключ status.'
+        )
+        logger.error(exc_info=True)
+    if homework_status not in HOMEWORK_STATUSES.keys():
+        raise ValueError(
+            f'Статус домашней работы {homework_status} некорректен.'
+        )
+        logger.error(stack_info=True)
     verdict = HOMEWORK_STATUSES[homework_status]
-
-    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    message = f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    return message
 
 
 def check_tokens():
