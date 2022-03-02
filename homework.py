@@ -38,8 +38,12 @@ HOMEWORK_STATUSES = {
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
-    bot.send_message(TELEGRAM_CHAT_ID, message)
-    logger.info('Сообщение отправлено')
+    try:
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+        logger.info('Сообщение отправлено')
+    except TelegramError(message):
+        message = 'сообщение не отправлено'
+        logger.error('message')
 
 
 def get_api_answer(current_timestamp):
@@ -47,10 +51,17 @@ def get_api_answer(current_timestamp):
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+
     if response.status_code == HTTPStatus.OK:
-        return response.json()
-    if response.status_code != HTTPStatus.OK:
-        raise ex.NegativeValueAPI('нет ответа от эндпоинта')
+        try:
+            return response.json()
+        except json.decoder.JSONDecodeError:
+            logger.error('не json')
+    else:
+        try:
+            return response('нет ответа от эндпоинта')
+        except ex.NegativeValueAPI:
+            logger.error('нет ответа от эндпоинта')
 
 
 def check_response(response):
@@ -59,9 +70,13 @@ def check_response(response):
         message = 'Ответ API не словарь'
         logger.error(message)
         raise TypeError(message)
-    elif len(response['homeworks']) == 0:
-        raise KeyError('список пуст')
-    elif type(response['homeworks']) is not list:
+    try:
+        if len(response['homeworks']) == 0:
+            return response([])
+    except KeyError:
+        logger.error('список пуст')
+
+    if type(response['homeworks']) is not list:
         raise ex.NegativeValueException('домашки приходят не в виде списка')
     homework = response["homeworks"]
     return homework
@@ -70,16 +85,20 @@ def check_response(response):
 def parse_status(homework):
     """Извлекает из информации о конкретной."""
     """домашней работе статус этой работы."""
-    homework_name = homework['homework_name']
-    homework_status = homework['status']
-
-    if 'status' not in homework:
+    try:
+        homework_name = homework['homework_name']
+        raise KeyError('Ответ от API не содержит ключа "homework_name".')
+    except KeyError:
+        logger.error('Ответ от API не содержит ключа "homework_name".')
+    try:
+        homework_status = homework['status']
         raise KeyError('Ответ от API не содержит ключа "status".')
-
+    except KeyError:
+        logger.error('Ответ от API не содержит ключа "status".')
     if homework_status not in HOMEWORK_STATUSES:
-        logger.debug('отсуствует в ответе новые статусы')
-        raise ex.NegativeValueException(
-            "Cтатус отсутствующий в списке!"
+        logging.debug('Cтатус отсутствующий в списке!')
+        raise KeyError(
+            'Cтатус отсутствующий в списке!'
         )
 
     verdict = HOMEWORK_STATUSES[homework_status]
@@ -125,14 +144,6 @@ def main():
             current_timestamp = response['current_date']
             time.sleep(RETRY_TIME)
 
-        except TelegramError(message):
-            message = 'сообщение не отправлено'
-            logger.error('message')
-        except ex.NegativeValueAPI:
-            message = 'нет ответа от эндпоинта'
-            logger.error('message')
-        except json.decoder.JSONDecodeError:
-            logger.error('не json')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)

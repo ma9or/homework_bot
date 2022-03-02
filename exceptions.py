@@ -2,11 +2,9 @@ class NegativeValueException(Exception):
     """Класс исключений."""
 
 
-pass
-
-
 class NegativeValueAPI(Exception):
     """Класс исключений для эндпоита."""
 
 
-pass
+class NegativeValueStatus(Exception):
+    """Класс исключений для статусов домашней работы."""
