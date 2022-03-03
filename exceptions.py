@@ -6,5 +6,5 @@ class NegativeValueAPI(Exception):
     """Класс исключений для эндпоита."""
 
 
-class NegativeValueStatus(Exception):
+class EmptyList(Exception):
     """Класс исключений для статусов домашней работы."""
