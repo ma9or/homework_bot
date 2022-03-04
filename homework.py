@@ -74,7 +74,7 @@ def check_response(response):
         raise TypeError(message)
     try:
         if len(response['homeworks']) == 0:
-            raise ex.EmptyList('текст ошибки')
+            raise ex.EmptyList('пустой список')
 
     except KeyError as error:
         message = f'ключ отсутствует: {error}'
