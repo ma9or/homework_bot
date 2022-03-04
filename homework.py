@@ -134,7 +134,7 @@ def main():
         message = 'Аутентификация не удалась'
         logger.critical(message)
         raise SystemExit(message)
-
+    error = ''
     while True:
         try:
             response = get_api_answer(current_timestamp)
@@ -142,17 +142,16 @@ def main():
 
             if homework is not None:
                 message = parse_status(homework)
-                if message is not None:
-                    send_message(bot, message)
+                send_message(bot, message)
 
             current_timestamp = response['current_date']
             time.sleep(RETRY_TIME)
 
-        except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            send_message(bot, message)
-            time.sleep(RETRY_TIME)
-        else:
+        except Exception as e:
+            message = f'Сбой в работе программы: {e}'
+            logger.error(message)
+            if message != error and send_message(bot, message):
+                error = message
             time.sleep(RETRY_TIME)
 
 
