@@ -134,7 +134,7 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)[]
+            homework = check_response(response)
 
             if homework is not None:
                 message = parse_status(homework)
