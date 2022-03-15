@@ -136,8 +136,8 @@ def main():
             response = get_api_answer(current_timestamp)
             homework = check_response(response)
 
-            if homework is not None:
-                message = parse_status(homework)
+            if homework:
+                message = parse_status(homework[0])
                 send_message(bot, message)
 
             current_timestamp = response['current_date']
