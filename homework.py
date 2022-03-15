@@ -1,15 +1,15 @@
-import os
-import logging
-import telegram
-import time
-import requests
 import json
-import exceptions as ex
-
+import logging
+import os
+import time
 from http import HTTPStatus
+
+import requests
+import telegram
 from dotenv import load_dotenv
 from telegram.error import TelegramError
 
+import exceptions as ex
 
 load_dotenv()
 
@@ -72,13 +72,9 @@ def check_response(response):
         message = 'Ответ API не словарь'
         logger.error(message)
         raise TypeError(message)
-    try:
-        if len(response['homeworks']) == 0:
-            raise ex.EmptyList('пустой список')
 
-    except KeyError as error:
-        message = f'ключ отсутствует: {error}'
-        raise KeyError(message)
+    if len(response['homeworks']) == 0:
+        return []
 
     if type(response['homeworks']) is not list:
         raise ex.NegativeValueException('домашки приходят не в виде списка')
